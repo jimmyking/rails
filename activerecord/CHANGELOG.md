@@ -1,3 +1,49 @@
+*   Create indexes inline in CREATE TABLE for MySQL.
+
+    This is important, because adding an index on a temporary table after it has been created
+    would commit the transaction.
+
+    It also allows creating and dropping indexed tables with fewer queries and fewer permissions
+    required.
+
+    Example:
+
+        create_table :temp, temporary: true, as: "SELECT id, name, zip FROM a_really_complicated_query" do |t|
+          t.index :zip
+        end
+        # => CREATE TEMPORARY TABLE temp (INDEX (zip)) AS SELECT id, name, zip FROM a_really_complicated_query
+
+    *Cody Cutrer*, *Steve Rice*, *Rafael Mendonça Franca*
+
+*   Save `has_one` association even if the record doesn't changed.
+
+    Fixes #14407.
+
+    *Rafael Mendonça França*
+
+*   Use singular table name in generated migrations when
+    `ActiveRecord::Base.pluralize_table_names` is `false`.
+
+    Fixes #13426.
+
+    *Kuldeep Aggarwal*
+
+*   `touch` accepts many attributes to be touched at once.
+
+    Example:
+
+        # touches :signed_at, :sealed_at, and :updated_at/on attributes.
+        Photo.last.touch(:signed_at, :sealed_at)
+
+    *James Pinto*
+
+*   `rake db:structure:dump` only dumps schema information if the schema
+    migration table exists.
+
+    Fixes #14217.
+
+    *Yves Senn*
+
 *   Reap connections that were checked out by now-dead threads, instead
     of waiting until they disconnect by themselves. Before this change,
     a suitably constructed series of short-lived threads could starve
@@ -5,6 +51,11 @@
     the same time.
 
     *Matthew Draper*
+
+*   `pk_and_sequence_for` now ensures that only the pg_depend entries
+    pointing to pg_class, and thus only sequence objects, are considered.
+
+    *Josh Williams*
 
 *   `where.not` adds `references` for `includes` like normal `where` calls do.
 
@@ -47,12 +98,6 @@
     values without needing to wrap in UPPER/LOWER sql functions.
 
     *Troy Kruthoff*, *Lachlan Sylvester*
-
-*   Only save has_one associations if record has changes.
-    Previously after save related callbacks, such as `#after_commit`, were triggered when the has_one
-    object did not get saved to the db.
-
-    *Alan Kennedy*
 
 *   Allow strings to specify the `#order` value.
 

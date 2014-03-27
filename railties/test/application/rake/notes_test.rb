@@ -28,17 +28,7 @@ module ApplicationTests
         app_file 'config/locales/en.yaml', '# TODO: note in yaml'
         app_file "app/views/home/index.ruby", "# TODO: note in ruby"
 
-        boot_rails
-        require 'rake'
-        require 'rdoc/task'
-        require 'rake/testtask'
-
-        Rails.application.load_tasks
-
-        Dir.chdir(app_path) do
-          output = `bundle exec rake notes`
-          lines = output.scan(/\[([0-9\s]+)\](\s)/)
-
+        run_rake_notes do |output, lines|
           assert_match(/note in erb/, output)
           assert_match(/note in js/, output)
           assert_match(/note in css/, output)
@@ -49,11 +39,7 @@ module ApplicationTests
           assert_match(/note in ruby/, output)
 
           assert_equal 9, lines.size
-
-          lines.each do |line|
-            assert_equal 4, line[0].size
-            assert_equal ' ', line[1]
-          end
+          assert_equal [4], lines.map(&:size).uniq
         end
       end
 
@@ -66,18 +52,7 @@ module ApplicationTests
 
         app_file "some_other_dir/blah.rb", "# TODO: note in some_other directory"
 
-        boot_rails
-
-        require 'rake'
-        require 'rdoc/task'
-        require 'rake/testtask'
-
-        Rails.application.load_tasks
-
-        Dir.chdir(app_path) do
-          output = `bundle exec rake notes`
-          lines = output.scan(/\[([0-9\s]+)\]/).flatten
-
+        run_rake_notes do |output, lines|
           assert_match(/note in app directory/, output)
           assert_match(/note in config directory/, output)
           assert_match(/note in db directory/, output)
@@ -86,10 +61,7 @@ module ApplicationTests
           assert_no_match(/note in some_other directory/, output)
 
           assert_equal 5, lines.size
-
-          lines.each do |line_number|
-            assert_equal 4, line_number.size
-          end
+          assert_equal [4], lines.map(&:size).uniq
         end
       end
 
@@ -102,18 +74,7 @@ module ApplicationTests
 
         app_file "some_other_dir/blah.rb", "# TODO: note in some_other directory"
 
-        boot_rails
-
-        require 'rake'
-        require 'rdoc/task'
-        require 'rake/testtask'
-
-        Rails.application.load_tasks
-
-        Dir.chdir(app_path) do
-          output = `SOURCE_ANNOTATION_DIRECTORIES='some_other_dir' bundle exec rake notes`
-          lines = output.scan(/\[([0-9\s]+)\]/).flatten
-
+        run_rake_notes "SOURCE_ANNOTATION_DIRECTORIES='some_other_dir' bundle exec rake notes" do |output, lines|
           assert_match(/note in app directory/, output)
           assert_match(/note in config directory/, output)
           assert_match(/note in db directory/, output)
@@ -123,10 +84,7 @@ module ApplicationTests
           assert_match(/note in some_other directory/, output)
 
           assert_equal 6, lines.size
-
-          lines.each do |line_number|
-            assert_equal 4, line_number.size
-          end
+          assert_equal [4], lines.map(&:size).uniq
         end
       end
 
@@ -144,28 +102,14 @@ module ApplicationTests
           end
         EOS
 
-        boot_rails
-
-        require 'rake'
-        require 'rdoc/task'
-        require 'rake/testtask'
-
-        Rails.application.load_tasks
-
-        Dir.chdir(app_path) do
-          output = `bundle exec rake notes_custom`
-          lines = output.scan(/\[([0-9\s]+)\]/).flatten
-
+        run_rake_notes "bundle exec rake notes_custom" do |output, lines|
           assert_match(/\[FIXME\] note in lib directory/, output)
           assert_match(/\[TODO\] note in test directory/, output)
           assert_no_match(/OPTIMIZE/, output)
           assert_no_match(/note in app directory/, output)
 
           assert_equal 2, lines.size
-
-          lines.each do |line_number|
-            assert_equal 4, line_number.size
-          end
+          assert_equal [4], lines.map(&:size).uniq
         end
       end
 
@@ -174,17 +118,7 @@ module ApplicationTests
         app_file "app/assets/stylesheets/application.css.scss", "// TODO: note in scss"
         app_file "app/assets/stylesheets/application.css.sass", "// TODO: note in sass"
 
-        boot_rails
-
-        require 'rake'
-        require 'rdoc/task'
-        require 'rake/testtask'
-
-        Rails.application.load_tasks
-
-        Dir.chdir(app_path) do
-          output = `bundle exec rake notes`
-          lines = output.scan(/\[([0-9\s]+)\]/).flatten
+        run_rake_notes do |output, lines|
           assert_match(/note in scss/, output)
           assert_match(/note in sass/, output)
           assert_equal 2, lines.size
@@ -192,6 +126,27 @@ module ApplicationTests
       end
 
       private
+
+      def run_rake_notes(command = 'bundle exec rake notes')
+        boot_rails
+        load_tasks
+
+        Dir.chdir(app_path) do
+          output = `#{command}`
+          lines  = output.scan(/\[([0-9\s]+)\]\s/).flatten
+
+          yield output, lines
+        end
+      end
+
+      def load_tasks
+        require 'rake'
+        require 'rdoc/task'
+        require 'rake/testtask'
+
+        Rails.application.load_tasks
+      end
+
       def boot_rails
         super
         require "#{app_path}/config/environment"
